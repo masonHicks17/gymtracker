@@ -89,14 +89,6 @@ export default function WorkoutSetup({ onGenerate, isGenerating }) {
         </div>
       </section>
 
-      {/* Mode indicator */}
-      {!hasApiKey && (
-        <div className="flex items-center gap-2 bg-surface-2 rounded-xl px-4 py-3 text-sm text-muted">
-          <span>⚡</span>
-          <span>Free mode — add API key in Settings for AI generation</span>
-        </div>
-      )}
-
       {/* Generate button */}
       <Button
         onClick={handleGenerate}
