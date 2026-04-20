@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback } from 'react'
 import { db } from '../db/schema'
 import {
   addWorkout, updateWorkout, addSet,
@@ -10,7 +10,6 @@ import { generateWorkout } from '../ai/workoutGenerator'
 import { recommendWeight } from '../utils/weightCalc'
 import { calcSessionXP } from '../utils/xpCalc'
 import { calcNewStreak } from '../utils/streakCalc'
-import { EXERCISES, getExercisesForSession, selectWorkoutExercises } from '../data/exercises'
 
 // States: idle | generating | ready | active | post-session | complete
 const INITIAL = {
@@ -22,6 +21,31 @@ const INITIAL = {
   prs: [],
   startTime: null,
   xpEarned: 0,
+}
+
+async function enrichExerciseTargets(exercises, sessionType) {
+  return Promise.all((exercises ?? []).map(async (exercise) => {
+    const [lastWeight, ease, consecutiveJustRight, prevMax] = await Promise.all([
+      getLastWeight(exercise.id),
+      getLastEase(exercise.id),
+      getConsecutiveJustRight(exercise.id),
+      getMaxLift(exercise.id),
+    ])
+
+    const recommendedWeight = recommendWeight({
+      lastWeight: prevMax ?? lastWeight,
+      ease,
+      consecutiveJustRight,
+      defaultWeight: exercise.targetWeight ?? exercise.defaultWeight ?? 0,
+      sessionType,
+    })
+
+    return {
+      ...exercise,
+      targetWeight: exercise.equipmentType === 'bodyweight' ? 0 : recommendedWeight,
+      reps: exercise.reps ?? exercise.defaultReps ?? 10,
+    }
+  }))
 }
 
 export function useWorkout() {
@@ -50,10 +74,20 @@ export function useWorkout() {
         overrideSessionType: sessionType,
       })
 
+      const exercises = await enrichExerciseTargets(
+        result.exercises,
+        sessionType ?? result.dayType.toLowerCase()
+      )
+
       setState(s => ({
         ...s,
         status: 'ready',
-        workout: { gym, sessionType: sessionType ?? result.dayType.toLowerCase(), exercises: result.exercises, sessionNotes: result.sessionNotes },
+        workout: {
+          gym,
+          sessionType: sessionType ?? result.dayType.toLowerCase(),
+          exercises,
+          sessionNotes: result.sessionNotes,
+        },
       }))
     } catch (err) {
       console.error('Workout generation failed:', err)
@@ -84,10 +118,9 @@ export function useWorkout() {
   // ── Set logging ─────────────────────────────────────────────────
   const logSet = useCallback(async ({ exerciseId, setNumber, actualWeight, reps, targetWeight }) => {
     const { workoutId } = state
-    const setId = await addSet({ workoutId, exerciseId, setNumber, actualWeight, reps, targetWeight, ease: null })
-
     const prevMax = await getMaxLift(exerciseId)
     const isPR = actualWeight > 0 && (prevMax === null || actualWeight > prevMax)
+    const setId = await addSet({ workoutId, exerciseId, setNumber, actualWeight, reps, targetWeight, ease: null })
 
     setState(s => ({
       ...s,
@@ -158,25 +191,35 @@ export function useWorkout() {
   }, [state])
 
   // ── Workout editor (ready state) ────────────────────────────────
-  const swapExercise = useCallback((index, newExercise) => {
-    setState(s => ({
-      ...s,
-      workout: {
-        ...s.workout,
-        exercises: s.workout.exercises.map((ex, i) => i === index ? newExercise : ex),
-      },
-    }))
-  }, [])
+  const swapExercise = useCallback(async (index, newExercise) => {
+    const [recommendedExercise] = await enrichExerciseTargets(
+      [newExercise],
+      state.workout?.sessionType ?? 'full-body'
+    )
 
-  const addExercise = useCallback((exercise) => {
     setState(s => ({
       ...s,
       workout: {
         ...s.workout,
-        exercises: [...(s.workout?.exercises ?? []), exercise],
+        exercises: s.workout.exercises.map((ex, i) => i === index ? recommendedExercise : ex),
       },
     }))
-  }, [])
+  }, [state.workout?.sessionType])
+
+  const addExercise = useCallback(async (exercise) => {
+    const [recommendedExercise] = await enrichExerciseTargets(
+      [exercise],
+      state.workout?.sessionType ?? 'full-body'
+    )
+
+    setState(s => ({
+      ...s,
+      workout: {
+        ...s.workout,
+        exercises: [...(s.workout?.exercises ?? []), recommendedExercise],
+      },
+    }))
+  }, [state.workout?.sessionType])
 
   const removeExercise = useCallback((index) => {
     setState(s => ({

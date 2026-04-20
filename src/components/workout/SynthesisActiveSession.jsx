@@ -352,12 +352,16 @@ export default function SynthesisActiveSession({
   const exercise = exercises[currentIndex]
   const exerciseCompletedSets = completedSets[exercise?.id] ?? []
   const targetSets = exercise?.sets ?? 4
+  const isLastExercise = currentIndex >= exercises.length - 1
+  const recommendedWeight = exercise?.targetWeight ?? exercise?.defaultWeight ?? 0
+  const recommendedReps = exercise?.reps ?? exercise?.defaultReps ?? 10
+  const recommendedRest = exercise?.restSeconds ?? 60
 
   // Local state for current set being logged
   const [sets, setSets] = useState(
     Array.from({ length: targetSets }, (_, i) => ({
-      weight: exerciseCompletedSets[i]?.actualWeight ?? exercise?.defaultWeight ?? 0,
-      reps: exerciseCompletedSets[i]?.reps ?? exercise?.defaultReps ?? 10,
+      weight: exerciseCompletedSets[i]?.actualWeight ?? recommendedWeight,
+      reps: exerciseCompletedSets[i]?.reps ?? recommendedReps,
       complete: !!exerciseCompletedSets[i],
     }))
   )
@@ -381,14 +385,33 @@ export default function SynthesisActiveSession({
     return () => clearInterval(id)
   }, [running])
 
+  useEffect(() => {
+    if (!exercise) return
+
+    const nextSets = Array.from({ length: targetSets }, (_, i) => ({
+      weight: exerciseCompletedSets[i]?.actualWeight ?? recommendedWeight,
+      reps: exerciseCompletedSets[i]?.reps ?? recommendedReps,
+      complete: !!exerciseCompletedSets[i],
+    }))
+
+    setSets(nextSets)
+    setCurrentSetIdx(Math.min(exerciseCompletedSets.length, Math.max(targetSets - 1, 0)))
+    setActiveDim('weight')
+    setPreset(recommendedRest)
+    setRemaining(recommendedRest)
+    setRunning(false)
+  }, [exercise?.id, exerciseCompletedSets, recommendedReps, recommendedRest, recommendedWeight, targetSets])
+
   const timerProgress = remaining / preset
-  const currentSet = sets[currentSetIdx]
+  const currentSet = sets[currentSetIdx] ?? sets[0] ?? { weight: recommendedWeight, reps: recommendedReps, complete: false }
   const progressDone = sets.filter((s) => s.complete).length
   const progressAll = sets.length
   const circ = 2 * Math.PI * 22
   const dashOff = circ * (1 - progressDone / progressAll)
+  const allSetsLogged = progressDone >= progressAll && progressAll > 0
 
   const bump = (field, delta) => {
+    if (!sets[currentSetIdx]) return
     const newSets = [...sets]
     newSets[currentSetIdx] = {
       ...newSets[currentSetIdx],
@@ -398,6 +421,7 @@ export default function SynthesisActiveSession({
   }
 
   const toggleCurrent = async () => {
+    if (!sets[currentSetIdx]) return
     const newSets = [...sets]
     const newComplete = !newSets[currentSetIdx].complete
 
@@ -411,7 +435,7 @@ export default function SynthesisActiveSession({
       setNumber: currentSetIdx + 1,
       actualWeight: s.weight,
       reps: s.reps,
-      targetWeight: exercise.defaultWeight,
+      targetWeight: recommendedWeight,
     })
 
     // Auto-advance to next set
@@ -426,13 +450,16 @@ export default function SynthesisActiveSession({
     <div
       style={{
         width: '100%',
-        minHeight: '100vh',
+        height: '100%',
+        minHeight: 0,
         background: themeObj.bg,
         color: themeObj.ink,
-        padding: '54px 20px 60px',
+        padding: '54px 20px calc(env(safe-area-inset-bottom, 0px) + 120px)',
         display: 'flex',
         flexDirection: 'column',
         gap: 16,
+        overflowY: 'auto',
+        WebkitOverflowScrolling: 'touch',
       }}
     >
       {/* Header with progress ring */}
@@ -727,6 +754,7 @@ export default function SynthesisActiveSession({
             range={activeDim === 'weight' ? 6 : 6}
             unit={activeDim === 'weight' ? 'lb' : 'reps'}
             onChange={(v) => {
+              if (!sets[currentSetIdx]) return
               const newSets = [...sets]
               newSets[currentSetIdx] = { ...newSets[currentSetIdx], [activeDim]: v }
               setSets(newSets)
@@ -894,6 +922,60 @@ export default function SynthesisActiveSession({
 
       {/* History */}
       <EditorialHistory theme={themeObj} accent={accentObj} completedSets={exerciseCompletedSets} exercise={exercise} />
+
+      {/* Session navigation */}
+      <div
+        style={{
+          display: 'flex',
+          gap: 12,
+          position: 'sticky',
+          bottom: 0,
+          paddingTop: 4,
+          marginTop: 'auto',
+          background: `linear-gradient(180deg, rgba(10,10,10,0), ${themeObj.bg} 28%)`,
+        }}
+      >
+        {!isLastExercise && (
+          <button
+            onClick={onNext}
+            style={{
+              flex: 1,
+              height: 56,
+              borderRadius: 28,
+              border: `1px solid ${allSetsLogged ? accentObj.solid : themeObj.line}`,
+              background: allSetsLogged ? accentObj.solid : themeObj.surface2,
+              color: allSetsLogged ? accentObj.ink : themeObj.ink,
+              fontFamily: SANS_FONT,
+              fontSize: 15,
+              fontWeight: 700,
+              letterSpacing: -0.2,
+              cursor: 'pointer',
+            }}
+          >
+            {allSetsLogged ? 'Next Exercise' : 'Next Exercise Anyway'}
+          </button>
+        )}
+        {isLastExercise && (
+          <button
+            onClick={onFinish}
+            style={{
+              flex: 1,
+              height: 56,
+              borderRadius: 28,
+              border: `1px solid ${allSetsLogged ? accentObj.solid : themeObj.line}`,
+              background: allSetsLogged ? accentObj.solid : themeObj.surface2,
+              color: allSetsLogged ? accentObj.ink : themeObj.ink,
+              fontFamily: SANS_FONT,
+              fontSize: 15,
+              fontWeight: 700,
+              letterSpacing: -0.2,
+              cursor: 'pointer',
+            }}
+          >
+            {allSetsLogged ? 'Finish Workout' : 'Finish Workout Anyway'}
+          </button>
+        )}
+      </div>
     </div>
   )
 }
