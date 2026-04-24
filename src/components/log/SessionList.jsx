@@ -1,13 +1,18 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db/schema'
 import { deleteWorkout } from '../../db/queries'
-import { formatDate, sessionTypeLabel, formatDuration } from '../../utils/formatters'
+import { sessionTypeLabel, formatDuration } from '../../utils/formatters'
 import SessionDetail from './SessionDetail'
 import Modal from '../shared/Modal'
 import Button from '../shared/Button'
 
-export default function SessionList() {
+const DISPLAY = `'Fraunces', 'Times New Roman', Georgia, serif`
+const MONO    = `'JetBrains Mono', 'SF Mono', ui-monospace, monospace`
+const SANS    = `'Inter', -apple-system, system-ui, sans-serif`
+const LINE    = 'rgba(255,255,255,0.07)'
+
+export default function SessionList({ showSearch }) {
   const [search, setSearch] = useState('')
   const [selectedId, setSelectedId] = useState(null)
 
@@ -16,45 +21,137 @@ export default function SessionList() {
     []
   ) ?? []
 
+  const allSets = useLiveQuery(() => db.sets.toArray(), []) ?? []
+
   const filtered = workouts.filter(w =>
     !search || sessionTypeLabel(w.type).toLowerCase().includes(search.toLowerCase())
   )
+
+  // Totals
+  const totalVolume = useMemo(
+    () => allSets.reduce((s, r) => s + (r.actualWeight || 0) * (r.reps || 0), 0),
+    [allSets]
+  )
+  const totalTime = useMemo(
+    () => workouts.reduce((s, w) => s + (w.duration || 0), 0),
+    [workouts]
+  )
+
+  const fmtVolume = totalVolume >= 1_000_000
+    ? `${(totalVolume / 1_000_000).toFixed(1)}M`
+    : totalVolume >= 1000
+    ? `${(totalVolume / 1000).toFixed(1)}K`
+    : totalVolume.toString()
+
+  const fmtTime = totalTime >= 3600
+    ? `${Math.round(totalTime / 3600)}h`
+    : `${Math.round(totalTime / 60)}m`
+
+  // Group by month
+  const monthGroups = useMemo(() => {
+    const groups = {}
+    for (const w of filtered) {
+      const d = new Date(w.date)
+      const key = `${d.getFullYear()}-${d.getMonth()}`
+      if (!groups[key]) {
+        groups[key] = {
+          label: d.toLocaleDateString('en-US', { month: 'long' }),
+          year: d.getFullYear().toString(),
+          sessions: [],
+        }
+      }
+      groups[key].sessions.push(w)
+    }
+    return Object.values(groups)
+  }, [filtered])
 
   if (selectedId) {
     return <SessionDetail workoutId={selectedId} onBack={() => setSelectedId(null)} />
   }
 
   return (
-    <div className="flex flex-col gap-4 px-4 pt-4 pb-safe">
-      {/* Search */}
-      <input
-        value={search}
-        onChange={e => setSearch(e.target.value)}
-        placeholder="Search sessions…"
-        className="w-full bg-surface-2 rounded-xl px-4 py-3 text-sm text-white placeholder-muted/50 border border-white/10 focus:border-accent/50 outline-none"
-      />
+    <div style={{ flex: 1, overflowY: 'auto' }}>
+      {/* Totals strip */}
+      <div style={{ padding: '0 22px 16px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', borderBottom: `1px solid ${LINE}`, marginBottom: 16 }}>
+        {[
+          ['Sessions', workouts.length.toString(), null],
+          ['Volume', fmtVolume, 'lb'],
+          ['Time', fmtTime, null],
+        ].map(([l, v, u], i) => (
+          <div key={l} style={{ borderLeft: i > 0 ? `1px solid ${LINE}` : 'none', paddingLeft: i > 0 ? 12 : 0 }}>
+            <div style={{ fontFamily: MONO, fontSize: 9, color: 'rgba(244,242,238,0.32)', letterSpacing: 0.8, textTransform: 'uppercase' }}>{l}</div>
+            <div style={{ fontFamily: DISPLAY, fontSize: 24, color: '#F4F2EE', letterSpacing: -0.6, marginTop: 3, fontFeatureSettings: '"tnum"' }}>
+              {v}{u && <span style={{ fontSize: 11, color: 'rgba(244,242,238,0.32)', marginLeft: 3 }}>{u}</span>}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Search bar */}
+      {showSearch && (
+        <div style={{ padding: '0 18px 14px' }}>
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search sessions…"
+            autoFocus
+            style={{
+              width: '100%', background: '#1E1E1E', borderRadius: 14, padding: '12px 16px',
+              fontSize: 14, color: '#F4F2EE', border: `1px solid ${LINE}`, outline: 'none',
+              fontFamily: SANS,
+            }}
+          />
+        </div>
+      )}
 
       {filtered.length === 0 ? (
-        <div className="text-center py-16 text-muted">
-          <div className="text-5xl mb-3">📋</div>
-          <p className="font-semibold">No sessions yet</p>
-          <p className="text-sm mt-1">Complete a workout to see it here</p>
+        <div style={{ textAlign: 'center', padding: '64px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+          <div style={{ fontFamily: DISPLAY, fontSize: 22, color: '#F4F2EE', letterSpacing: -0.5 }}>No sessions yet</div>
+          <div style={{ fontFamily: MONO, fontSize: 10, color: 'rgba(244,242,238,0.32)', letterSpacing: 0.8, textTransform: 'uppercase' }}>Complete a workout to see it here</div>
         </div>
       ) : (
-        <div className="space-y-2">
-          {filtered.map(workout => (
-            <SessionRow key={workout.id} workout={workout} onOpen={() => setSelectedId(workout.id)} />
+        <div style={{ padding: '0 18px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {monthGroups.map(group => (
+            <div key={group.label + group.year}>
+              {/* Month header */}
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10, padding: '0 4px' }}>
+                <div style={{ fontFamily: DISPLAY, fontSize: 22, color: '#F4F2EE', letterSpacing: -0.5, fontStyle: 'italic', fontWeight: 400 }}>
+                  {group.label}
+                </div>
+                <div style={{ fontFamily: MONO, fontSize: 10, color: 'rgba(244,242,238,0.32)', letterSpacing: 0.8 }}>{group.year}</div>
+                <div style={{ flex: 1 }} />
+                <div style={{ fontFamily: MONO, fontSize: 10, color: 'rgba(244,242,238,0.32)', letterSpacing: 0.6, textTransform: 'uppercase' }}>
+                  {group.sessions.length} sess.
+                </div>
+              </div>
+              {/* Session rows */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {group.sessions.map(w => (
+                  <SessionRow key={w.id} workout={w} allSets={allSets} onOpen={() => setSelectedId(w.id)} />
+                ))}
+              </div>
+            </div>
           ))}
+          <div style={{ height: 20 }} />
         </div>
       )}
     </div>
   )
 }
 
-function SessionRow({ workout, onOpen }) {
+function SessionRow({ workout, allSets, onOpen }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const sets = useLiveQuery(() => db.sets.where('workoutId').equals(workout.id).toArray(), [workout.id]) ?? []
+
+  const sets = allSets.filter(s => s.workoutId === workout.id)
   const totalVolume = sets.reduce((sum, s) => sum + (s.actualWeight || 0) * (s.reps || 0), 0)
+
+  const d = new Date(workout.date)
+  const dayNum = d.getDate().toString().padStart(2, '0')
+  const weekday = d.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()
+
+  const volStr = totalVolume >= 1000
+    ? `${(totalVolume / 1000).toFixed(1)}K`
+    : totalVolume.toString()
 
   const handleDelete = async (e) => {
     e.stopPropagation()
@@ -64,36 +161,44 @@ function SessionRow({ workout, onOpen }) {
 
   return (
     <>
-      <div className="flex items-stretch gap-2">
-        <button
-          onClick={onOpen}
-          className="flex-1 text-left bg-surface-2 rounded-2xl p-4 border border-white/5 active:bg-white/5 transition-colors"
-        >
-          <div className="flex items-center justify-between mb-1">
-            <span className="font-bold text-base">{sessionTypeLabel(workout.type)}</span>
-            <span className="text-sm text-muted">{formatDate(workout.date)}</span>
+      <div
+        onClick={onOpen}
+        style={{
+          background: '#161616', border: `1px solid ${LINE}`,
+          borderRadius: 18, padding: '14px 16px',
+          display: 'flex', alignItems: 'center', gap: 14,
+          cursor: 'pointer',
+        }}
+      >
+        {/* Date block */}
+        <div style={{ textAlign: 'center', minWidth: 38 }}>
+          <div style={{ fontFamily: DISPLAY, fontSize: 24, fontWeight: 400, color: '#F4F2EE', lineHeight: 1, letterSpacing: -0.6 }}>
+            {dayNum}
           </div>
-          <div className="flex gap-3 text-xs text-muted">
-            <span>{sets.length} sets</span>
-            {totalVolume > 0 && <span>{totalVolume.toLocaleString()} lbs volume</span>}
-            {workout.duration && <span>{formatDuration(workout.duration)}</span>}
+          <div style={{ fontFamily: MONO, fontSize: 9, color: 'rgba(244,242,238,0.32)', letterSpacing: 0.6, textTransform: 'uppercase', marginTop: 3 }}>
+            {weekday}
           </div>
-        </button>
-        <button
-          onClick={() => setConfirmDelete(true)}
-          className="flex-shrink-0 w-11 flex items-center justify-center bg-surface-2 rounded-2xl border border-white/5 text-danger/60 hover:text-danger hover:bg-danger/10 transition-colors"
-          title="Delete session"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
-          </svg>
-        </button>
+        </div>
+        <div style={{ width: 1, height: 32, background: LINE, flexShrink: 0 }} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: DISPLAY, fontSize: 15, color: '#F4F2EE', letterSpacing: -0.2 }}>
+            {sessionTypeLabel(workout.type)}
+          </div>
+          <div style={{ fontFamily: MONO, fontSize: 10, color: 'rgba(244,242,238,0.32)', letterSpacing: 0.5, marginTop: 3 }}>
+            {sets.length} sets
+            {totalVolume > 0 && <span style={{ color: 'rgba(244,242,238,0.58)' }}> · {volStr} lb</span>}
+            {workout.duration ? ` · ${formatDuration(workout.duration)}` : ''}
+          </div>
+        </div>
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M5 3l4 4-4 4" stroke="rgba(244,242,238,0.32)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
       </div>
 
       <Modal open={confirmDelete} onClose={() => setConfirmDelete(false)} title="Delete Session?">
         <div className="px-5 pb-6 space-y-3">
           <p className="text-sm text-muted">
-            Delete <span className="text-white font-semibold">{sessionTypeLabel(workout.type)}</span> on {formatDate(workout.date)}? All sets will be removed.
+            Delete <span className="text-white font-semibold">{sessionTypeLabel(workout.type)}</span>? All sets will be removed.
           </p>
           <Button variant="danger" fullWidth onClick={handleDelete}>Delete Session</Button>
           <Button variant="secondary" fullWidth onClick={() => setConfirmDelete(false)}>Cancel</Button>

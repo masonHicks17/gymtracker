@@ -13,10 +13,13 @@ export async function initStats() {
       totalXP: 0,
       streak: 0,
       lastWorkoutDate: null,
-      goalType: 'strength', // 'strength' | 'mass' | 'toning'
-      accentColor: '#3b82f6',
+      goalType: 'strength',
+      accentColor: '#FF9E5E',
       apiKey: '',
     })
+  } else if (existing.accentColor === '#3b82f6') {
+    // Migrate old default blue → design-system orange
+    await db.userStats.update(1, { accentColor: '#FF9E5E' })
   }
 }
 

@@ -6,12 +6,13 @@ import PRHistory from '../components/progress/PRHistory'
 
 export default function Progress() {
   return (
-    <div className="flex flex-col full-height overflow-y-auto">
-      <Header title="Progress" />
-      <div className="flex-1 px-4 pb-safe pt-2 space-y-5">
+    <div className="flex flex-col full-height" style={{ background: '#0A0A0A' }}>
+      <Header title="Progress" eyebrow="Your lifts over time" />
+      <div style={{ flex: 1, overflowY: 'auto', padding: '4px 18px 0', display: 'flex', flexDirection: 'column', gap: 14 }}>
         <LiftChart />
         <VolumeChart />
         <PRHistory />
+        <div style={{ height: 20 }} />
       </div>
     </div>
   )

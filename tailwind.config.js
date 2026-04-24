@@ -4,9 +4,9 @@ export default {
   theme: {
     extend: {
       colors: {
-        background: '#1a1a1a',
-        surface: '#242424',
-        'surface-2': '#2e2e2e',
+        background: '#0A0A0A',
+        surface: '#141414',
+        'surface-2': '#1E1E1E',
         accent: 'var(--accent)',
         pr: '#f59e0b',
         muted: '#a0a0a0',

@@ -44,7 +44,13 @@
       "Bash(git push *)",
       "mcp__f02059e7-c768-4a42-8f0c-37bf794c57fd__notion-search",
       "mcp__f02059e7-c768-4a42-8f0c-37bf794c57fd__notion-create-pages",
-      "mcp__f02059e7-c768-4a42-8f0c-37bf794c57fd__notion-move-pages"
+      "mcp__f02059e7-c768-4a42-8f0c-37bf794c57fd__notion-move-pages",
+      "Bash(unzip -o \"Heavy lifting-handoff.zip\" -d /tmp/heavylift-design)",
+      "Bash(gunzip -c \"/Users/masonhicks/.claude/projects/-Users-masonhicks-Desktop-HeavyLifting/ee6ea230-facb-476f-b128-9f677a0f8e4a/tool-results/webfetch-1777062336302-c7y9d4.bin\")",
+      "Bash(tar -t)",
+      "Bash(grep -E \"\\\\.html$\")",
+      "Bash(grep -E \"\\\\.jsx$\")",
+      "Bash(tar -xf -)"
     ]
   }
 }

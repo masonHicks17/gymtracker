@@ -1,28 +1,29 @@
 import React from 'react'
-import { useStats } from '../../hooks/useStats'
-import { getLevel } from '../../utils/xpCalc'
 
-export default function Header({ title, right, showLevel = false }) {
-  const { totalXP, streak } = useStats()
+const DISPLAY = `'Fraunces', 'Times New Roman', Georgia, serif`
+const MONO    = `'JetBrains Mono', 'SF Mono', ui-monospace, monospace`
 
+export default function Header({ title, eyebrow, right }) {
   return (
-    <header className="flex items-center justify-between px-4 pt-safe pb-3 bg-background sticky top-0 z-40">
-      <h1 className="text-xl font-bold tracking-tight">{title}</h1>
-      <div className="flex items-center gap-3">
-        {showLevel && (
-          <div className="flex items-center gap-1">
-            <span className="text-xs text-muted">Lvl</span>
-            <span className="text-sm font-bold text-accent">{getLevel(totalXP)}</span>
-          </div>
+    <header style={{
+      padding: 'calc(env(safe-area-inset-top, 0px) + 20px) 22px 14px',
+      display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12,
+      position: 'sticky', top: 0, zIndex: 40, background: '#0A0A0A',
+      flexShrink: 0,
+    }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {eyebrow && (
+          <div style={{
+            fontFamily: MONO, fontSize: 10, letterSpacing: 1.4,
+            color: 'rgba(244,242,238,0.32)', textTransform: 'uppercase', marginBottom: 4,
+          }}>{eyebrow}</div>
         )}
-        {streak > 0 && (
-          <div className="flex items-center gap-1 bg-surface px-2 py-1 rounded-full">
-            <span className="text-xs">🔥</span>
-            <span className="text-xs font-semibold">{streak}</span>
-          </div>
-        )}
-        {right}
+        <div style={{
+          fontFamily: DISPLAY, fontSize: 32, fontWeight: 400, color: '#F4F2EE',
+          letterSpacing: -1, lineHeight: 1,
+        }}>{title}</div>
       </div>
+      {right}
     </header>
   )
 }

@@ -1,33 +1,63 @@
 import React from 'react'
 
-const tabs = [
-  { id: 'home',    label: 'Home',    icon: HomeIcon },
-  { id: 'workout', label: 'Workout', icon: WorkoutIcon },
-  { id: 'log',     label: 'Log',     icon: LogIcon },
-  { id: 'progress',label: 'Progress',icon: ProgressIcon },
+const MONO = `'JetBrains Mono', 'SF Mono', ui-monospace, monospace`
+
+const TABS = [
+  {
+    id: 'home', label: 'Home',
+    icon: (c) => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M3 10l9-7 9 7v11a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1z"/></svg>,
+  },
+  {
+    id: 'workout', label: 'Workout',
+    icon: (c) => <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="2" y="10" width="2.5" height="4" rx="0.6" fill={c}/><rect x="4.5" y="7.5" width="2" height="9" rx="0.6" fill={c}/><rect x="17.5" y="7.5" width="2" height="9" rx="0.6" fill={c}/><rect x="19.5" y="10" width="2.5" height="4" rx="0.6" fill={c}/><rect x="6.5" y="11" width="11" height="2" rx="0.5" fill={c}/></svg>,
+  },
+  {
+    id: 'log', label: 'Log',
+    icon: (c) => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M6 3h9l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M15 3v5h5"/><path d="M9 14h7M9 18h7M9 10h3"/></svg>,
+  },
+  {
+    id: 'progress', label: 'Progress',
+    icon: (c) => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M3 18l5-5 4 3 7-8"/><path d="M16 8h3v3"/></svg>,
+  },
 ]
 
 export default function BottomNav({ active, onChange }) {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-surface border-t border-white/10 safe-bottom">
-      <div className="flex">
-        {tabs.map(tab => {
-          const Icon = tab.icon
-          const isActive = active === tab.id
-          return (
-            <button
-              key={tab.id}
-              onClick={() => onChange(tab.id)}
-              className={`flex-1 flex flex-col items-center py-3 gap-1 transition-colors ${
-                isActive ? 'text-accent' : 'text-muted'
-              }`}
-            >
-              <Icon size={22} active={isActive} />
-              <span className="text-[10px] font-medium tracking-wide">{tab.label}</span>
-            </button>
-          )
-        })}
-      </div>
+    <nav style={{
+      position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50,
+      background: '#0A0A0A',
+      borderTop: '1px solid rgba(255,255,255,0.07)',
+      paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 4px)',
+      display: 'flex',
+    }}>
+      {TABS.map(tab => {
+        const isActive = active === tab.id
+        const color = isActive ? 'var(--accent)' : 'rgba(244,242,238,0.32)'
+        return (
+          <button
+            key={tab.id}
+            onClick={() => onChange(tab.id)}
+            style={{
+              flex: 1, display: 'flex', flexDirection: 'column',
+              alignItems: 'center', gap: 5, paddingTop: 10, paddingBottom: 6,
+              background: 'none', border: 'none', cursor: 'pointer',
+              position: 'relative',
+            }}
+          >
+            {isActive && (
+              <div style={{
+                position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)',
+                width: 24, height: 2, borderRadius: 1, background: 'var(--accent)',
+              }} />
+            )}
+            {tab.icon(color)}
+            <span style={{
+              fontFamily: MONO, fontSize: 9, letterSpacing: 0.8,
+              textTransform: 'uppercase', color,
+            }}>{tab.label}</span>
+          </button>
+        )
+      })}
     </nav>
   )
 }

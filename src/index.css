@@ -3,7 +3,8 @@
 @tailwind utilities;
 
 :root {
-  --accent: #3b82f6;
+  --accent: #FF9E5E;
+  --accent-rgb: 255, 158, 94;
 }
 
 * {
@@ -13,8 +14,8 @@
 
 html, body, #root {
   height: 100%;
-  background-color: #1a1a1a;
-  color: white;
+  background-color: #0A0A0A;
+  color: #F4F2EE;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
   overscroll-behavior: none;
 }

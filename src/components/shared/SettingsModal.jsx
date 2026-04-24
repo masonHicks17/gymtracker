@@ -5,12 +5,12 @@ import { useSettings } from '../../hooks/useSettings'
 import { seedAll, clearAll } from '../../db/seed'
 
 const ACCENT_COLORS = [
-  { label: 'Blue',   value: '#3b82f6' },
-  { label: 'Purple', value: '#8b5cf6' },
-  { label: 'Green',  value: '#22c55e' },
-  { label: 'Orange', value: '#f97316' },
-  { label: 'Pink',   value: '#ec4899' },
-  { label: 'Cyan',   value: '#06b6d4' },
+  { label: 'Orange', value: '#FF9E5E' },
+  { label: 'Lime',   value: '#C8F751' },
+  { label: 'Violet', value: '#B79BFF' },
+  { label: 'Coral',  value: '#FF7A6B' },
+  { label: 'Cyan',   value: '#6BD5F0' },
+  { label: 'Sand',   value: '#E6D4A8' },
 ]
 
 const GOALS = [
